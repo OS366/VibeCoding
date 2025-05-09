@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeCoding - Text Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Text Analysis</h1>
+        <div class="input-container">
+            <textarea id="text-input" placeholder="Enter your text here..."></textarea>
+            <button id="analyze-button" class="magic-button">Magic Button ✨</button>
+        </div>
+        <div id="loading" class="hidden">Analyzing...</div>
+        <div id="results-container" class="hidden">
+            <h2>Analysis Results</h2>
+
+            <div class="result-section">
+                <h3>Urgency Level</h3>
+                <p id="urgency-result" class="with-icon"></p>
+            </div>
+
+            <div class="result-section">
+                <h3>Concept Type</h3>
+                <p id="concept-result" class="with-icon"></p>
+            </div>
+
+            <div class="result-section">
+                <h3>Tone</h3>
+                <p id="tone-result"></p>
+            </div>
+            <div class="result-section">
+                <h3>Formality Level</h3>
+                <p id="formality-result"></p>
+            </div>
+            <div class="result-section">
+                <h3>Grammatical Errors</h3>
+                <ul id="grammar-result"></ul>
+            </div>
+            <div class="result-section">
+                <h3>Improvement Suggestions</h3>
+                <ul id="suggestions-result"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const analyzeButton = document.getElementById('analyze-button');
+            const textInput = document.getElementById('text-input');
+            const loadingEl = document.getElementById('loading');
+            const resultsContainer = document.getElementById('results-container');
+            
+            analyzeButton.addEventListener('click', async function() {
+                const text = textInput.value.trim();
+                
+                if (!text) {
+                    alert('Please enter some text to analyze.');
+                    return;
+                }
+                
+                // Show loading indicator
+                loadingEl.classList.remove('hidden');
+                resultsContainer.classList.add('hidden');
+                
+                try {
+                    const response = await fetch('/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ text }),
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Parse the analysis (it comes as a string from the API)
+                    const analysis = JSON.parse(data.analysis);
+                    
+                    // Display results
+                    document.getElementById('tone-result').textContent = analysis.tone;
+                    document.getElementById('formality-result').textContent = analysis.formality_level;
+                    
+                    // Display urgency with icon
+                    const urgencyResult = document.getElementById('urgency-result');
+                    let urgencyIcon = '⚪️'; // Default
+                    
+                    if (analysis.urgency_level === 'High') {
+                        urgencyIcon = '🔴'; // Red circle for high urgency
+                    } else if (analysis.urgency_level === 'Medium') {
+                        urgencyIcon = '🟠'; // Orange circle for medium urgency
+                    } else if (analysis.urgency_level === 'Low') {
+                        urgencyIcon = '🟢'; // Green circle for low urgency
+                    }
+                    
+                    urgencyResult.innerHTML = `${urgencyIcon} ${analysis.urgency_level}`;
+                    
+                    // Display concept type with icon
+                    const conceptResult = document.getElementById('concept-result');
+                    let conceptIcon = '📄'; // Default document icon
+                    
+                    if (analysis.concept_type === 'Idea') {
+                        conceptIcon = '💡'; // Lightbulb for ideas
+                    } else if (analysis.concept_type === 'Question') {
+                        conceptIcon = '❓'; // Question mark for questions
+                    } else if (analysis.concept_type === 'Problem') {
+                        conceptIcon = '⚠️'; // Warning for problems
+                    } else if (analysis.concept_type === 'Request') {
+                        conceptIcon = '🙏'; // Praying hands for requests
+                    } else if (analysis.concept_type === 'Information') {
+                        conceptIcon = 'ℹ️'; // Info symbol for information
+                    }
+                    
+                    conceptResult.innerHTML = `${conceptIcon} ${analysis.concept_type}`;
+                    
+                    // Display grammatical errors
+                    const grammarList = document.getElementById('grammar-result');
+                    grammarList.innerHTML = '';
+                    if (analysis.grammatical_errors.length === 0) {
+                        grammarList.innerHTML = '<li>No grammatical errors found.</li>';
+                    } else {
+                        analysis.grammatical_errors.forEach(error => {
+                            const li = document.createElement('li');
+                            li.innerHTML = `<strong>${error.error}</strong>: ${error.suggestion}`;
+                            grammarList.appendChild(li);
+                        });
+                    }
+                    
+                    // Display improvement suggestions
+                    const suggestionsList = document.getElementById('suggestions-result');
+                    suggestionsList.innerHTML = '';
+                    if (analysis.improvement_suggestions.length === 0) {
+                        suggestionsList.innerHTML = '<li>No suggestions found.</li>';
+                    } else {
+                        analysis.improvement_suggestions.forEach(suggestion => {
+                            const li = document.createElement('li');
+                            li.textContent = suggestion;
+                            suggestionsList.appendChild(li);
+                        });
+                    }
+                    
+                    // Show results container
+                    resultsContainer.classList.remove('hidden');
+                } catch (error) {
+                    alert('Error analyzing text: ' + error.message);
+                } finally {
+                    // Hide loading indicator
+                    loadingEl.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

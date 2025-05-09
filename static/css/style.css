@@ -1,0 +1,115 @@
+/* General styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+}
+
+body {
+    background-color: #121212;
+    color: #e0e0e0;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #f5f5f5;
+}
+
+h2 {
+    margin: 1.5rem 0;
+    color: #f5f5f5;
+}
+
+h3 {
+    margin: 1rem 0 0.5rem;
+    color: #6ba6ff;
+}
+
+/* Input area */
+.input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 1rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    resize: vertical;
+    font-size: 1rem;
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+}
+
+.magic-button {
+    background: linear-gradient(135deg, #9947ff 0%, #3c96ff 100%);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    align-self: center;
+}
+
+.magic-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(99, 64, 255, 0.5);
+}
+
+/* Results area */
+.result-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #2d2d2d;
+    border-radius: 4px;
+}
+
+.with-icon {
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+}
+
+.with-icon::before {
+    margin-right: 0.5rem;
+    font-size: 1.4rem;
+}
+
+ul {
+    list-style-position: inside;
+    padding-left: 1rem;
+}
+
+li {
+    margin-bottom: 0.5rem;
+}
+
+/* Loading and visibility */
+.hidden {
+    display: none;
+}
+
+#loading {
+    text-align: center;
+    font-style: italic;
+    margin: 1rem 0;
+    color: #aaaaaa;
+} 
