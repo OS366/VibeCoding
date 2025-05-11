@@ -54,7 +54,7 @@ echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
 python app.py
 ```
 
-2. Open your web browser and navigate to `http://127.0.0.1:5000`
+2. Open your web browser and navigate to `http://127.0.0.1:5003`
 
 3. Enter text in the input box and click the "Analyze" button
 
