@@ -1,16 +1,13 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 import openai
 import logging
+import json
 import httpx
-import re
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
-
-# Load environment variables
-load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -18,20 +15,81 @@ app = Flask(__name__)
 # Enable debug mode
 app.config['DEBUG'] = True
 
-# Get OpenAI API key from environment variables
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    app.logger.error("No OpenAI API key found in environment variables!")
+# Clear any proxy environment variables that might be causing issues
+os.environ.pop('HTTP_PROXY', None)
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('http_proxy', None)
+os.environ.pop('https_proxy', None)
+
+def get_api_key():
+    """Get the OpenAI API key from .env file."""
+    # Reload the .env file to get the latest changes
+    load_dotenv(override=True)
+    api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key or api_key == "your_openai_api_key_here":
+        app.logger.warning("No valid API key found in .env file")
+        return None
+    else:
+        masked_key = f"{api_key[:5]}...{api_key[-4:]}" if len(api_key) > 10 else "Invalid key format"
+        app.logger.debug(f"Using API key from .env: {masked_key}")
+        return api_key
+
+def save_api_key(new_key):
+    """Save the API key to .env file."""
+    try:
+        # Check if .env file exists
+        if not os.path.exists('.env'):
+            # Create the file
+            with open('.env', 'w') as f:
+                f.write(f"OPENAI_API_KEY={new_key}\n")
+        else:
+            # Use python-dotenv's set_key function
+            set_key('.env', 'OPENAI_API_KEY', new_key)
+            
+        app.logger.debug("API key saved to .env file")
+        return True
+    except Exception as e:
+        app.logger.error(f"Failed to save API key to .env file: {str(e)}")
+        return False
 
 @app.route('/')
 def index():
     app.logger.debug("Index route accessed")
-    return render_template('index.html')
+    api_key = get_api_key()
+    
+    if not api_key:
+        app.logger.warning("Redirecting to setup page")
+        return render_template('setup.html')
+    else:
+        return render_template('index.html')
+
+@app.route('/set-api-key', methods=['POST'])
+def set_api_key():
+    new_api_key = request.form.get('api_key')
+    if new_api_key and new_api_key.strip():
+        new_api_key = new_api_key.strip()
+        
+        # Save to .env file
+        if save_api_key(new_api_key):
+            app.logger.debug("API key updated and saved to .env file")
+        else:
+            app.logger.error("Failed to save API key")
+            return "Failed to save API key", 500
+            
+        return redirect(url_for('index'))
+    else:
+        return "API key cannot be empty", 400
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
     app.logger.debug("Analyze route accessed")
     app.logger.debug(f"Request headers: {request.headers}")
+    
+    # Get API key from .env
+    api_key = get_api_key()
+    if not api_key:
+        return jsonify({'error': 'No valid OpenAI API key found in .env file. Please set your API key.'}), 401
     
     # Get text from request
     text = request.json.get('text', '')
@@ -46,66 +104,96 @@ def analyze():
         urgency_level = determine_urgency(text)
         concept_type = determine_concept_type(text)
         
-        # Create a dummy response for testing
-        app.logger.debug("Creating dummy response for testing")
-        dummy_analysis = f"""
-        {{
-            "grammatical_errors": [
+        app.logger.debug("Setting up direct API call")
+        # Make a direct API call without using the OpenAI client library
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        payload = {
+            "model": "gpt-3.5-turbo",
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant that analyzes text and returns results in JSON format."},
+                {"role": "user", "content": f"""
+                Please analyze the following text and provide your analysis in valid JSON format with the following structure:
                 {{
-                    "error": "Incorrect word usage",
-                    "suggestion": "Consider using more precise language"
+                  "grammatical_errors": [
+                    {{
+                      "error": "description of the error",
+                      "suggestion": "suggestion to fix the error"
+                    }}
+                  ],
+                  "tone": "description of the tone (e.g. formal, friendly, technical)",
+                  "formality_level": "description of the formality level (e.g. formal, casual)",
+                  "improvement_suggestions": [
+                    "suggestion 1",
+                    "suggestion 2"
+                  ]
                 }}
-            ],
-            "tone": "Informal",
-            "formality_level": "Casual",
-            "urgency_level": "{urgency_level}",
-            "concept_type": "{concept_type}",
-            "improvement_suggestions": [
-                "Add more structure to your sentences",
-                "Consider using more professional terminology"
+
+                The text to analyze is: {text}
+                
+                Ensure the response is a valid JSON object and nothing else.
+                """}
             ]
-        }}
-        """
+        }
         
-        app.logger.debug("Returning dummy analysis")
-        return jsonify({'analysis': dummy_analysis})
+        # Create a client with no proxy configuration
+        client = httpx.Client(timeout=60.0)
         
-        # NOTE: The OpenAI API call is commented out due to the proxies error
-        # We'll use a dummy response instead for now
-        """
-        # Create a custom HTTP transport without proxies
-        app.logger.debug("Creating HTTP transport without proxies")
-        transport = httpx.HTTPTransport(local_address="0.0.0.0")
-        http_client = httpx.Client(transport=transport, timeout=60.0)
+        masked_key = f"{api_key[:5]}...{api_key[-4:]}" if len(api_key) > 10 else "Invalid key format"
+        app.logger.debug(f"Making API request with key: {masked_key}")
+        response = client.post(url, json=payload, headers=headers)
+        response.raise_for_status()  # Raise exception for bad status codes
         
-        app.logger.debug("Initializing OpenAI client")
-        client = openai.OpenAI(
-            api_key=api_key,
-            http_client=http_client
-        )
-        
-        app.logger.debug("Calling OpenAI API")
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that analyzes text for grammatical errors, tone, urgency level, and other language aspects. Provide your analysis in JSON format with the following structure: {grammatical_errors: [{error: string, suggestion: string}], tone: string, formality_level: string, urgency_level: string, concept_type: string, improvement_suggestions: [string]}. For urgency_level, use one of: 'High', 'Medium', 'Low'. For concept_type, use one of: 'Idea', 'Question', 'Problem', 'Request', 'Information'."},
-                {"role": "user", "content": f"Analyze the following text: {text}"}
-            ]
-        )
+        response_data = response.json()
+        app.logger.debug(f"Response status code: {response.status_code}")
         
         # Extract analysis from the response
-        analysis = response.choices[0].message.content
-        app.logger.debug(f"Analysis received from OpenAI")
+        analysis_json = response_data["choices"][0]["message"]["content"]
+        app.logger.debug(f"Analysis received from OpenAI: {analysis_json[:100]}...")
         
-        return jsonify({'analysis': analysis})
-        """
+        # Parse the JSON to validate it
+        analysis = json.loads(analysis_json)
+        
+        # Add our detected urgency and concept type to the analysis
+        analysis["urgency_level"] = urgency_level
+        analysis["concept_type"] = concept_type
+        
+        # Convert back to JSON string
+        final_analysis = json.dumps(analysis)
+        
+        return jsonify({'analysis': final_analysis})
     
     except Exception as e:
         app.logger.error(f"Error during analysis: {str(e)}")
         app.logger.error(f"Error type: {type(e)}")
         import traceback
         app.logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
+        
+        # Fallback to dummy analysis in case of API error
+        app.logger.warning("Falling back to dummy analysis due to API error")
+        dummy_analysis = f"""
+        {{
+            "grammatical_errors": [
+                {{
+                    "error": "API Error - Couldn't analyze",
+                    "suggestion": "Please try again later"
+                }}
+            ],
+            "tone": "Unknown (API Error)",
+            "formality_level": "Unknown (API Error)",
+            "urgency_level": "{urgency_level}",
+            "concept_type": "{concept_type}",
+            "improvement_suggestions": [
+                "Unable to provide suggestions due to API error: {str(e)}"
+            ]
+        }}
+        """
+        return jsonify({'analysis': dummy_analysis, 'error': str(e)}), 500
 
 def determine_urgency(text):
     """Determine the urgency level based on text content."""

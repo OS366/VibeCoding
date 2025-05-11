@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeCoding - API Key Setup</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .api-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .api-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .api-input {
+            width: 100%;
+            padding: 1rem;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+            font-family: monospace;
+        }
+        
+        .note {
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Key Setup</h1>
+        
+        <div class="api-container">
+            <div class="result-section">
+                <h3>Enter Your OpenAI API Key</h3>
+                <p class="note">You need to provide an OpenAI API key to use the text analysis features. The key will be saved in a local .env file.</p>
+                
+                <form class="api-form" action="/set-api-key" method="POST">
+                    <input type="text" name="api_key" placeholder="sk-..." class="api-input" required>
+                    <button type="submit" class="magic-button">Save API Key</button>
+                </form>
+                
+                <p class="note">
+                    <br>
+                    How to get an API key:
+                    <br>
+                    1. Go to <a href="https://platform.openai.com/api-keys" style="color: #6ba6ff;">platform.openai.com/api-keys</a>
+                    <br>
+                    2. Sign up or log in to your OpenAI account
+                    <br>
+                    3. Create a new API key
+                    <br>
+                    4. Copy the key and paste it here
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
